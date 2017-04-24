@@ -2,6 +2,7 @@ var express = require('express'),
 app = express(),
 bodyParser =  require('body-parser'),
 UserSchema = require('./models/userSchema'),
+DeviceSchema = require('./models/deviceSchema'),
 config = require('./config'),
 jwt = require('jsonwebtoken');
 	//---------OTP MODIFY
@@ -10,6 +11,7 @@ jwt = require('jsonwebtoken');
     var config = require('./config');
     var cloudinary = require('cloudinary');
     var bcrypt = require('bcrypt');
+    		var gcm = require('node-gcm');
 
  //COMMON ERRORS--------------start-----------------------
 
@@ -436,6 +438,9 @@ exports.userSignup = function(req, res){
    					}
    				}) //end of findOne scope
 }
+
+
+
 exports.deleteUserDetails = function(req, res){
 	console.log("In deleteUserDetails req.body"+req.body);
 	var _id = req.body.UserId;
@@ -644,4 +649,217 @@ exports.updatePwd = function(req,res){
 	})
 
 }
+
+// case study ---start
+
+
+exports.pushuserSignup = function(req, res){
+
+	console.log("req body of userSignUp--", JSON.stringify(req.body)); 
+
+
+
+	 //a) Email field not empty
+	 if(req.body.DeviceId=='')
+	 	return res.json({ResponseCode:401, ResponseMessage:"deviceId is empty"})
+	// //  //b) Password field not empty
+	 if(req.body.Password=='')
+	 	return res.json({ResponseCode:401, ResponseMessage:"Password field is empty"})
+
+
+
+	DeviceSchema.findOne({DeviceId:req.body.DeviceId},function(err,result){
+		if(err){
+
+			 return res.json({ResponseCode:401, ResponseMessage: "Server Error."})
+		}
+		else if(result){
+   					//email found
+   				   res.send({ResponseCode: 401, ResponseMessage:"deviceId already exists"});
+   				}
+   				else{
+   						//email not found...save
+   						var bcryptPassword="";	
+   						bcrypt.hash(req.body.Password, 9, function(err, hash) {
+ 			 			// Store hash in your password DB. 
+			 			 bcryptPassword=hash;
+			 			 req.body.Password=bcryptPassword;
+
+			 			 console.log("bcryptPassword :" +bcryptPassword)
+
+			 			 var deviceSchema = new DeviceSchema(req.body);
+
+			 			 deviceSchema.save(function(err, resultUser){
+
+			 			 	if(err){
+			 			 			
+			 			 		res.send({ResponseCode:400, ResponseMessage: err});
+			 			 		console.log(err);
+			 			 	}
+			 			 	else{
+			 			 			
+			 			 		res.send({ResponseCode: 200, ResponseMessage:"Success.", RegisteredId:resultUser._id});
+			 			 	}
+			 			 });
+
+						}); // end of bcrypt scope
+   					}
+   					
+   				}) //end of findOne scope
+
+}
+
+exports.pushLogin = function(req, res){
+
+
+	console.log("login : "+req.body.RegisteredId+" Password : "+ req.body.Password);
+
+	 //validations ----start------
+
+
+	 if(req.body.Email=='')
+	 	return res.json({ResponseCode:401, ResponseMessage:"deviceId is empty."})
+	 if(req.body.Password=='')
+	 	return res.json({ResponseCode:401, ResponseMessage:"Password field is empty."})
+
+
+
+
+ 	 DeviceSchema.findOne({_id:req.body.RegisteredId}, function(err, user_login_info){
+ 	 	if(err){
+ 	 		return res.json({ResponseCode:401, ResponseMessage:"Server error."})
+ 	 	}else if(!user_login_info){
+ 	 		return res.json({ResponseCode:401, ResponseMessage: "Incorrect deviceId"})
+ 	 	}else{
+			//email database me mil gaya ..now match password using bcrypt.compare
+			bcrypt.compare(req.body.Password, user_login_info.Password, function(err, result) {
+    		// result == true 
+    		if(result)
+    		{
+    			res.send({ResponseCode: 200, ResponseMessage:"Login Successful.",RegisteredId: user_login_info._id});
+
+    		}
+    		else {
+    			res.send({ResponseCode: 400, ResponseMessage:"Incorrect Password"});
+    		}			
+			});	//end of bcrypt scope			
+		}
+	})
+ 	}
+
+exports.pushgetAll = function(req, res){
+
+	//get all the records of the table and display them on the screen
+
+	DeviceSchema.find().exec(function(err, user_info){
+		if(err){
+			return res.json({ResponseCode:400, ResponseMessage: "Server Error"})
+		}else{
+			res.send({ResponseCode: 200, List: user_info,ResponseMessage: "Success"});
+		}
+	})
+
+
+
+}
+
+
+ exports.pushshowUserDetails = function(req, res){
+ 	
+ 	var _id = req.body.RegisteredId;
+ 	if(!_id){
+ 		return res.json({ResponseCode:400, ResponseMessage: "UserId is missing."})
+ 	}
+ 	DeviceSchema
+ 	.findOne({_id:_id})
+ 	.exec(function(err, user_info){
+ 		if(err){
+ 			res.send({ResponseCode:400, ResponseMessage: "Error"});
+ 			console.log(err);
+ 		}else{
+ 			return res.json({ResponseCode:200, List:user_info,ResponseMessage: "Success"});
+ 		}
+ 	})
+ }
+
+
+exports.pushsendMessage = function(req, res){
+
+		var message = new gcm.Message({data: {message: req.body.Message}});
+		var regTokens = [req.body.RegistrationId];
+		var sender = new gcm.Sender("ENTER GCM API KEY");
+
+
+		//save the message details in the schema sendMessageArray
+
+		//uncomment after you get the API key from GCM
+
+		// sender.send(message, { registrationTokens: regTokens }, function (err, response) {
+
+		// 	if (err){
+
+		// 		console.error(err);
+		// 		res.send({ResponseCode:400, ResponseMessage: "Error."});
+			
+
+			//} else     {
+
+
+			//update Message details in the schema after message sent successfully using gcm
+
+			 console.log("req.body.FromRegistrationId"+req.body.FromRegistrationId +"req.body.ToRegistrationId :" +req.body.ToRegistrationId)
+
+			DeviceSchema.findOneAndUpdate({_id:req.body.FromRegistrationId},{$push:{SendMessageDetails:{RegisteredID:req.body.ToRegistrationId,Message:req.body.Message}}},{new:true}, function(err, result){
+			
+			if(err){
+			res.send({code:400, message: "Error"});
+	
+			}
+			else
+			{
+
+					res.send({ResponseCode:200, ResponseMessage: "Message Sent",Data:result});
+			}
+            });
+
+			
+				
+			//}
+
+		//});
+
+	}
+
+ exports.pushrecieveNotification = function(req, res){
+
+
+	var _id = req.body.RegistrationId;
+
+	console.log("req.body.RegistrationId "+req.body.RegistrationId)
+	if(!_id){
+		res.send({ResponseCode:400, ResponseMessage: "RegistrationId is missing."})
+	}	
+	DeviceSchema.findOneAndUpdate({_id:_id},{$set:{RecieveNotification:false}},{new:true}, function(err, updateResult){
+		if(err){
+			res.send({ResponseCode:400, ResponseMessage: "Interal Server Error."});
+			console.log(err);
+		}else{
+			 res.send({ResponseCode:200, ResponseMessage:"Notification facility disabled",updateResult:updateResult});
+		}
+	})	
+
+
+	}
+
+
+exports.pushdeleteDevices = function(req, res){
+
+DeviceSchema.remove({_id: req.body.RegisteredId}, function(err, userDeleted){
+ 		return res.json({ResponseCode:200, ResponseMessage:"Device deleted"});
+
+})
+}
+
+
+
 

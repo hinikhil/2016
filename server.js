@@ -76,6 +76,24 @@ app.post('/verifyOtp',user_action.verifyOtp);//done
 app.post('/updatePwd',user_action.updatePwd);//done
 
 
+
+//case study-push notification
+
+app.post('/push/userSignup',user_action.pushuserSignup);//done
+app.post('/push/Login',user_action.pushLogin);//done
+
+app.post('/push/getAll',user_action.pushgetAll);//done
+app.post('/push/showUserDetails',user_action.pushshowUserDetails);//done
+
+app.post('/push/sendMessage',user_action.pushsendMessage);//done
+app.post('/push/recieveNotification',user_action.pushrecieveNotification);//done
+app.post('/push/deleteDevice',user_action.pushdeleteDevices);//done
+
+
+
+
+
+
 // start the server
 app.listen(config.port,function(){
 	console.log("welcome to the node.js world" +config.port);

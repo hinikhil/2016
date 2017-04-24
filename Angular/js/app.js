@@ -50,7 +50,12 @@ app.config(function($stateProvider, $urlRouterProvider, $httpProvider) {
     $urlRouterProvider.otherwise('/Login');
 
 
+// {
 
+// "RegisteredId" :"6660b249cd7037122325d3ac",
+// "Message":"Hi how are you akash"
+
+// }
 
 // app.run(function($rootScope,$location,$window,$state) {
 //   $rootScope.$on("$stateChangeStart", function(event, toState, toParams, fromState, fromParams){

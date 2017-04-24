@@ -55,6 +55,7 @@ var UserSchema = new Schema({
 
 })
 
+
 var userSchema = mongoose.model('userSchema', UserSchema);
 module.exports = userSchema;
 // ------- For Super Admin Creation ---------// 
